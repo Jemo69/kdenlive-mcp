@@ -329,6 +329,32 @@ Details that matter, all verified against upstream's source:
 
 ---
 
+## Build plan
+
+The full build plan for this server — architecture, the format rules that bite,
+the WSL setup, and what was actually verified — is published at:
+
+**https://html-planner-server.vercel.app/p/kdenlive-mcp-server-build-plan**
+
+The source of that page lives in `docs/plan.html`.
+
+## Contributing
+
+Pull requests are welcome. Before you open one:
+
+```bash
+uv sync
+uv run pytest
+uv run ruff check src/ tests/ bridge/ tools/
+```
+
+If `melt` is installed, also run `uv run pytest tests/test_render.py` — those are
+the tests that prove the output is a real video file.
+
+Please read `AGENTS.md` first. It documents the project-file format rules that
+are easy to get wrong, and the ones that will silently produce a project
+Kdenlive refuses to open.
+
 ## Licence
 
 MIT. Kdenlive itself is GPL-3.0; this project only reads and writes its
