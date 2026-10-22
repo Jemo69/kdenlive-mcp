@@ -292,7 +292,7 @@
       <span class="chip">FastMCP 4</span>
       <span class="chip">uv managed</span>
       <span class="chip">37 tools</span>
-      <span class="chip">112 tests green</span>
+      <span class="chip">125 tests green</span>
       <span class="chip">CI on 3 OSes</span>
       <span class="chip">MIT</span>
     </div>
@@ -632,7 +632,7 @@ export KDENLIVE_MCP_BRIDGE_TOKEN=&lt;the same token&gt;</code></pre>
     </p>
     <ul>
       <li>
-        <strong>112 of 112 tests pass</strong>, including five that render real video
+        <strong>125 of 125 tests pass</strong>, including five that render real video
         through MLT 7.41 and probe the output frame by frame, ten that drive a
         live bridge process over HTTP, and eighteen that cover the undo history.
       </li>
@@ -722,6 +722,24 @@ export KDENLIVE_MCP_BRIDGE_TOKEN=&lt;the same token&gt;</code></pre>
         <tr><td><code>kdenlive_restore_checkpoint</code></td><td>Restore a named checkpoint.</td></tr>
       </tbody>
     </table>
+  </section>
+
+  <section>
+    <h2>Keeping it inside the box</h2>
+    <p>
+      An MCP server is driven by a model, so the paths it receives may be
+      hallucinated, mis-typed, or lifted from an untrusted document. Set
+      <code>KDENLIVE_MCP_ALLOWED_ROOTS</code> to the directories it may touch and
+      every project, media and output path is resolved &mdash; following
+      symlinks &mdash; and has to land inside one of them.
+    </p>
+    <p>
+      The check runs on the <strong>resolved</strong> path rather than on the
+      text that was typed, so a symlink pointing out of a root is rejected
+      exactly like a literal <code>..</code> would be. Without the variable the
+      server stays unrestricted, which keeps the zero-configuration promise,
+      and <code>kdenlive_status</code> reports which mode you are in.
+    </p>
   </section>
 
   <section>

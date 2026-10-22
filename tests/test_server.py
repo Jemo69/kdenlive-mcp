@@ -323,7 +323,7 @@ def test_render_without_melt_fails_clearly(project: str, monkeypatch):
     from kdenlive_mcp.binaries import ToolInfo
 
     monkeypatch.setattr(
-        "kdenlive_mcp.render.find_melt",
+        "kdenlive_mcp.render.binaries.find_melt",
         lambda: ToolInfo(name="melt", path=None, available=False, detail="not found"),
     )
     with pytest.raises(Exception) as exc:

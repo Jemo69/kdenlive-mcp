@@ -55,12 +55,29 @@ def _start_bridge(port: int, token: str = "") -> subprocess.Popen:
     raise RuntimeError("the bridge did not start in time")
 
 
+def _launch(token: str = "") -> tuple[subprocess.Popen, str]:
+    """Start a bridge, retrying on a fresh port if the first one is taken.
+
+    Finding a free port and then binding it is a race, and on a busy CI
+    runner it loses often enough to matter.
+    """
+    last_error: Exception | None = None
+    for _ in range(5):
+        port = _free_port()
+        try:
+            process = _start_bridge(port, token)
+        except RuntimeError as exc:
+            last_error = exc
+            continue
+        return process, f"http://127.0.0.1:{port}"
+    raise RuntimeError(f"could not start the bridge: {last_error}")
+
+
 @pytest.fixture
 def bridge():
-    port = _free_port()
-    process = _start_bridge(port)
+    process, url = _launch()
     try:
-        yield f"http://127.0.0.1:{port}"
+        yield url
     finally:
         process.terminate()
         try:
@@ -71,10 +88,9 @@ def bridge():
 
 @pytest.fixture
 def secure_bridge():
-    port = _free_port()
-    process = _start_bridge(port, token="s3cr3t")
+    process, url = _launch(token="s3cr3t")
     try:
-        yield f"http://127.0.0.1:{port}"
+        yield url
     finally:
         process.terminate()
         try:

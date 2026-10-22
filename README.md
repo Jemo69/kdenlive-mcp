@@ -312,6 +312,28 @@ sequence references accept an index, a name or an id.
 | `KDENLIVE_MCP_BACKUP` | `0` disables the `.bak` file on save |
 | `KDENLIVE_MCP_MAX_BACKUPS` | How many `.bak` generations to keep (default 3) |
 | `KDENLIVE_MCP_STATE_DIR` | Where the undo history is kept (default: the OS state directory) |
+| `KDENLIVE_MCP_ALLOWED_ROOTS` | Directories the server may read and write (default: unrestricted) |
+
+---
+
+## Keeping it inside the box
+
+An MCP server is driven by a model, which means the paths it receives may be
+hallucinated, mis-typed, or lifted from an untrusted document. Set
+`KDENLIVE_MCP_ALLOWED_ROOTS` to the directories it should be allowed to touch:
+
+```bash
+export KDENLIVE_MCP_ALLOWED_ROOTS="/home/me/Videos:/home/me/Projects"
+```
+
+Every project path, media path and output path is then resolved — following
+symlinks — and has to land inside one of those roots. Paths that escape
+through `..` or through a symlink are rejected, because the check runs on the
+resolved path rather than on the text that was typed.
+
+Without the variable the server is unrestricted, which keeps the
+zero-configuration promise. `kdenlive_status` reports which mode you are in,
+so you never have to guess.
 
 ---
 

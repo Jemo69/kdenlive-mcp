@@ -41,6 +41,7 @@ from .mltxml import (
     get_property,
     set_property,
 )
+from .sandbox import describe_policy, resolve_within
 from .timecode import coerce_frames, format_clock, format_frames, human_duration
 
 mcp = FastMCP(
@@ -78,7 +79,7 @@ Ref = int | str
 
 def _load(project_path: str | None) -> MltProject:
     """Load the project, raising a clean error when it is missing."""
-    path = resolve_project(project_path)
+    path = resolve_within(resolve_project(project_path), kind="project")
     if not path.exists():
         raise ProjectError(
             f"Project file not found: {path}. Create one with kdenlive_create_project, "
@@ -143,6 +144,7 @@ def kdenlive_status(project_path: Annotated[str | None, "Path to a .kdenlive fil
             project_info = {"error": str(exc)}
 
     return _ok(
+        policy=describe_policy(),
         platform={
             "system": platform.system(),
             "release": platform.release(),
@@ -435,7 +437,7 @@ def kdenlive_create_project(
     The project is created in the modern (23.04+) format with three tracks:
     two video and one audio.
     """
-    target = Path(project_path).expanduser()
+    target = resolve_within(project_path, kind="project")
     if target.exists():
         raise ToolError(f"{target} already exists. Choose another path or delete it first.")
 
@@ -581,7 +583,7 @@ def kdenlive_add_clip(
     else:
         if not media_path:
             raise ToolError("Either media_path or bin_clip is required")
-        media = Path(media_path).expanduser()
+        media = resolve_within(media_path, kind="media file")
         if not media.exists():
             raise MediaError(f"Media file not found: {media}")
         info = probe(media)
@@ -1153,7 +1155,7 @@ def kdenlive_probe_media(media_path: Annotated[str, "Path of the media file"] = 
     """Inspect a media file: duration, frame rate, resolution and streams."""
     if not media_path:
         raise ToolError("media_path is required")
-    info = probe(media_path)
+    info = probe(resolve_within(media_path, kind="media file"))
     return _ok(**info.describe())
 
 
@@ -1183,7 +1185,11 @@ def kdenlive_render(
     if project.path is None:
         raise ProjectError("Project has no path")
 
-    output = Path(output_path).expanduser() if output_path else project.path.with_suffix(".mp4")
+    output = (
+        resolve_within(output_path, kind="output file")
+        if output_path
+        else project.path.with_suffix(".mp4")
+    )
     render_module.ensure_output_dir(output)
 
     request = render_module.RenderRequest(

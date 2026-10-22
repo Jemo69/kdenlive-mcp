@@ -19,7 +19,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .binaries import find_melt, is_wsl, to_windows_path
+from . import binaries
 from .errors import RenderError
 
 _PROGRESS_RE = re.compile(r"current frame:\s*(\d+).*?percentage:\s*(\d+)", re.IGNORECASE)
@@ -147,7 +147,7 @@ class RenderManager:
 
     def start(self, request: RenderRequest) -> RenderJob:
         """Start a render on a background thread."""
-        melt = find_melt()
+        melt = binaries.find_melt()
         if not melt.available or not melt.path:
             raise RenderError(
                 "melt (the MLT renderer) was not found. Install Kdenlive (it ships with melt), "
@@ -241,9 +241,9 @@ def build_melt_command(melt_path: str, request: RenderRequest) -> list[str]:
 
     # When melt is a Windows binary reached through WSL interop it only
     # understands Windows paths.
-    if melt_path.lower().endswith(".exe") and is_wsl():
-        project = Path(to_windows_path(project))
-        output = Path(to_windows_path(output))
+    if melt_path.lower().endswith(".exe") and binaries.is_wsl():
+        project = Path(binaries.to_windows_path(project))
+        output = Path(binaries.to_windows_path(output))
 
     argv = [melt_path]
     if request.start_frame is not None or request.end_frame is not None:
