@@ -291,8 +291,8 @@
       <span class="chip">Python 3.10+</span>
       <span class="chip">FastMCP 4</span>
       <span class="chip">uv managed</span>
-      <span class="chip">32 tools</span>
-      <span class="chip">91 tests green</span>
+      <span class="chip">37 tools</span>
+      <span class="chip">112 tests green</span>
       <span class="chip">CI on 3 OSes</span>
       <span class="chip">MIT</span>
     </div>
@@ -632,9 +632,9 @@ export KDENLIVE_MCP_BRIDGE_TOKEN=&lt;the same token&gt;</code></pre>
     </p>
     <ul>
       <li>
-        <strong>91 of 91 tests pass</strong>, including five that render real video
-        through MLT 7.41 and probe the output frame by frame, and ten that drive a
-        live bridge process over HTTP.
+        <strong>112 of 112 tests pass</strong>, including five that render real video
+        through MLT 7.41 and probe the output frame by frame, ten that drive a
+        live bridge process over HTTP, and eighteen that cover the undo history.
       </li>
       <li>
         <strong>CI runs on all three operating systems.</strong> Ten jobs: Linux,
@@ -678,6 +678,53 @@ export KDENLIVE_MCP_BRIDGE_TOKEN=&lt;the same token&gt;</code></pre>
   <!-- ============================================================ -->
 
   <section>
+    <h2>Undo, redo and checkpoints</h2>
+    <p>
+      This was the clearest gap against the competition, and it is now closed.
+      Every mutating tool records a revision, so a bad batch of edits is
+      recoverable instead of catastrophic.
+    </p>
+    <h3>Why the file and not an inverse operation</h3>
+    <p>
+      Undo systems usually store the inverse of each edit. For XML that is
+      where they go wrong &mdash; the inverse of "insert an entry at frame 250"
+      depends on what was already there, and getting that subtly wrong
+      corrupts the project. Here the unit of undo is the file itself. A
+      revision stores the bytes before and after the change, so undoing is "put
+      the previous bytes back" and there is nothing to get wrong.
+    </p>
+    <h3>The safety check that matters</h3>
+    <p>
+      Before undoing, the current file is hashed and compared with the
+      revision that produced it. If somebody edited the file outside the MCP in
+      the meantime &mdash; which is exactly what happens when Kdenlive still has
+      the project open &mdash; the undo is <strong>refused</strong> rather than
+      silently discarding their work. <code>force=True</code> overrides it.
+    </p>
+    <h3>Where it is stored</h3>
+    <p>
+      Outside the project folder, in the platform state directory. A
+      <code>.kdenlive</code> file usually lives in a folder that gets synced to
+      cloud storage or handed to a render farm; a directory of full file
+      snapshots next to it is exactly the kind of thing that should not be
+      there. <code>KDENLIVE_MCP_STATE_DIR</code> moves it if you want it
+      elsewhere.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Tool</th><th>What it does</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>kdenlive_history</code></td><td>The audit trail of every change the MCP made to the file, with timestamps and hashes.</td></tr>
+        <tr><td><code>kdenlive_undo</code></td><td>Undo the last change. Refused if the file changed outside the MCP.</td></tr>
+        <tr><td><code>kdenlive_redo</code></td><td>Re-apply the change that was undone.</td></tr>
+        <tr><td><code>kdenlive_checkpoint</code></td><td>Name the current state so it can be restored later.</td></tr>
+        <tr><td><code>kdenlive_restore_checkpoint</code></td><td>Restore a named checkpoint.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
     <h2>Known limits</h2>
     <ul>
       <li>
@@ -689,6 +736,11 @@ export KDENLIVE_MCP_BRIDGE_TOKEN=&lt;the same token&gt;</code></pre>
         The model reads and writes the structures it needs and preserves the rest
         untouched, but obscure features — the timeline's own preview track, some
         proxy states — are carried along rather than understood.
+      </li>
+      <li>
+        <strong>Undo covers the file, not the Kdenlive session.</strong> Undoing an
+        MCP edit in a project that Kdenlive also has open still leaves the two out
+        of step &mdash; reload the project in Kdenlive after undoing.
       </li>
       <li>
         <strong>Render progress is parsed from melt's output text.</strong> That

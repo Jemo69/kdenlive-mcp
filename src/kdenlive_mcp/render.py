@@ -66,8 +66,14 @@ class RenderRequest:
     extra_args: list[str] = field(default_factory=list)
     overwrite: bool = True
 
-    def consumer_args(self) -> list[str]:
-        args = [f"avformat:{self.output}"]
+    def consumer_args(self, output: Path | None = None) -> list[str]:
+        """The ``-consumer`` arguments for this request.
+
+        ``output`` overrides the request's own path; the WSL interop needs
+        that because a Windows ``melt`` cannot write to a ``/mnt/...`` path.
+        """
+        target = self.output if output is None else output
+        args = [f"avformat:{target}"]
         if self.video_codec:
             args.append(f"vcodec={self.video_codec}")
         if self.audio_codec:
@@ -245,7 +251,7 @@ def build_melt_command(melt_path: str, request: RenderRequest) -> list[str]:
         if request.end_frame is not None:
             argv += ["out=" + str(request.end_frame)]
     argv += [str(project)]
-    argv += ["-consumer", *request.consumer_args()]
+    argv += ["-consumer", *request.consumer_args(output)]
     argv += request.extra_args
     return argv
 

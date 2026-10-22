@@ -33,6 +33,7 @@ from .binaries import (
 from .bridge import BridgeClient
 from .config import backups_enabled, prune_backups, resolve_project
 from .errors import KdenliveError, MediaError, ProjectError, ToolError
+from .history import ProjectHistory
 from .media import probe
 from .mltxml import (
     PROFILE_PRESETS,
@@ -86,14 +87,22 @@ def _load(project_path: str | None) -> MltProject:
     return MltProject.load(path)
 
 
-def _save(project: MltProject, *, backup: bool = True) -> Path:
-    """Write the project back to disk and prune old backups."""
+def _save(project: MltProject, *, backup: bool = True, operation: str = "edit") -> Path:
+    """Write the project back to disk and record it in the undo history."""
     path = project.path
     if path is None:
         raise ProjectError("Project has no path to save to")
+    before = project.source_bytes
     project.refresh_timings()
     project.save(backup=backup and backups_enabled())
     prune_backups(path)
+    try:
+        after = path.read_bytes()
+    except OSError:
+        after = None
+    if before is not None and after is not None:
+        ProjectHistory(path).record(operation, before, after)
+        project.source_bytes = after
     return path
 
 
@@ -484,7 +493,7 @@ def kdenlive_add_track(
     project.root.append(tractor)
     project.insert_track_into_sequence(seq, tractor_id, index)
 
-    _save(project)
+    _save(project, operation="add_track")
     return _ok(
         track_id=tractor_id,
         kind=kind,
@@ -523,7 +532,7 @@ def kdenlive_remove_track(
         "kdenlive:sequenceproperties.tracksCount",
         str(max(0, len(seq.tracks) - 1)),
     )
-    _save(project)
+    _save(project, operation="remove_track")
     return _ok(removed=target.track_id, remaining_tracks=len(seq.tracks))
 
 
@@ -623,7 +632,7 @@ def kdenlive_add_clip(
     project.set_property_on_sequence(seq, "kdenlive:duration", format_frames(
         max(project.playlist_length(target_track.playlist), seq.duration_frames), fps
     ))
-    _save(project)
+    _save(project, operation="add_clip")
 
     return _ok(
         clip_id=get_property(entry, "kdenlive:id"),
@@ -652,7 +661,7 @@ def kdenlive_remove_clip(
 
     length = project.playlist_remove_entry(timeline_clip.entry)
     project.merge_blanks(target_track.playlist)
-    _save(project)
+    _save(project, operation="remove_clip")
     return _ok(
         removed=timeline_clip.clip_id,
         position=timeline_clip.position,
@@ -685,7 +694,7 @@ def kdenlive_move_clip(
     project.merge_blanks(source_track.playlist)
     project.playlist_insert(destination_track.playlist, entry, start)
 
-    _save(project)
+    _save(project, operation="move_clip")
     return _ok(
         clip_id=timeline_clip.clip_id,
         from_track=source_track.index + 1,
@@ -732,7 +741,7 @@ def kdenlive_trim_clip(
 
     timeline_clip.entry.set("in", format_clock(start_in, fps))
     timeline_clip.entry.set("out", format_clock(end_in, fps))
-    _save(project)
+    _save(project, operation="trim_clip")
     return _ok(
         clip_id=timeline_clip.clip_id,
         in_point=format_clock(start_in, fps),
@@ -794,7 +803,7 @@ def kdenlive_split_clip(
 
         second_entry.append(_copy.deepcopy(existing))
     project.playlist_insert(target_track.playlist, second_entry, timeline_clip.position + first_length)
-    _save(project)
+    _save(project, operation="split_clip")
     return _ok(
         first_clip_id=timeline_clip.clip_id,
         second_clip_id=get_property(second_entry, "kdenlive:id"),
@@ -837,7 +846,7 @@ def kdenlive_set_clip_property(
 
     for key, value in properties.items():
         set_property(host, key, str(value))
-    _save(project)
+    _save(project, operation="set_clip_property")
     return _ok(clip_id=timeline_clip.clip_id, scope=scope, updated=properties)
 
 
@@ -863,7 +872,7 @@ def kdenlive_set_track_property(
         set_property(target_track.tractor, key, str(value))
         if key == "hide":
             set_property(target_track.playlist, "hide", str(value))
-    _save(project)
+    _save(project, operation="set_track_property")
     return _ok(track=target_track.index + 1, updated=properties)
 
 
@@ -922,7 +931,7 @@ def kdenlive_add_effect(
         raise ToolError("scope must be 'clip', 'track' or 'sequence'")
 
     element = project.add_filter(host, info.mlt_service, parameters)
-    _save(project)
+    _save(project, operation="add_effect")
     return _ok(
         filter_id=element.get("id"),
         mlt_service=info.mlt_service,
@@ -964,7 +973,7 @@ def kdenlive_remove_effect(
     for element in list(host.findall("filter")):
         if element.get("id") == filter_id:
             host.remove(element)
-            _save(project)
+            _save(project, operation="remove_effect")
             return _ok(removed=filter_id, scope=scope)
     raise ToolError(f"No filter with id {filter_id!r} in this {scope}")
 
@@ -1009,7 +1018,7 @@ def kdenlive_add_transition(
         out_frames=start + length - 1,
         parameters=parameters,
     )
-    _save(project)
+    _save(project, operation="add_transition")
     return _ok(
         transition_id=element.get("id"),
         mlt_service=info.mlt_service,
@@ -1036,9 +1045,102 @@ def kdenlive_remove_transition(
     for element in list(seq.transitions):
         if element.get("id") == transition_id:
             seq.tractor.remove(element)
-            _save(project)
+            _save(project, operation="remove_transition")
             return _ok(removed=transition_id)
     raise ToolError(f"No transition with id {transition_id!r} in sequence {seq.uuid}")
+
+
+# --------------------------------------------------------------------------
+# undo / redo / checkpoints
+# --------------------------------------------------------------------------
+
+
+@mcp.tool
+def kdenlive_history(
+    project_path: Annotated[str | None, "Path to a .kdenlive file"] = None,
+) -> dict:
+    """List the recorded changes to a project.
+
+    Every mutating tool records a revision, so this is the audit trail of what
+    the MCP did to the file and when.
+    """
+    path = resolve_project(project_path)
+    history = ProjectHistory(path)
+    revisions = history.revisions()
+    cursor = history.cursor()
+    return _ok(
+        project=str(path),
+        revision_count=len(revisions),
+        cursor=cursor,
+        can_undo=cursor >= 0,
+        can_redo=0 <= cursor < len(revisions) - 1,
+        revisions=[r.describe() for r in revisions],
+    )
+
+
+@mcp.tool
+def kdenlive_undo(
+    project_path: Annotated[str | None, "Path to a .kdenlive file"] = None,
+    force: Annotated[bool, "Undo even if the file was changed outside the MCP"] = False,
+) -> dict:
+    """Undo the last recorded change to the project.
+
+    The undo history is refused when the file was edited outside the MCP
+    since the last change, because undoing would throw that work away. Pass
+    ``force=True`` to override.
+    """
+    path = resolve_project(project_path)
+    revision, restored = ProjectHistory(path).undo(force=force)
+    return _ok(
+        undone=revision.describe(),
+        project=str(restored),
+        message=f"Restored the state before '{revision.operation}'",
+    )
+
+
+@mcp.tool
+def kdenlive_redo(
+    project_path: Annotated[str | None, "Path to a .kdenlive file"] = None,
+) -> dict:
+    """Re-apply the change that was most recently undone."""
+    path = resolve_project(project_path)
+    revision, restored = ProjectHistory(path).redo()
+    return _ok(
+        redone=revision.describe(),
+        project=str(restored),
+        message=f"Re-applied '{revision.operation}'",
+    )
+
+
+@mcp.tool
+def kdenlive_checkpoint(
+    project_path: Annotated[str | None, "Path to a .kdenlive file"] = None,
+    label: Annotated[str, "Name for this checkpoint"] = "",
+) -> dict:
+    """Name the current state of the project so it can be restored later.
+
+    Use this before a risky batch of edits, or to mark a milestone you want to
+    come back to.
+    """
+    if not label:
+        raise ToolError("label is required")
+    path = resolve_project(project_path)
+    revision = ProjectHistory(path).checkpoint(label)
+    return _ok(checkpoint=revision.describe(), project=str(path))
+
+
+@mcp.tool
+def kdenlive_restore_checkpoint(
+    project_path: Annotated[str | None, "Path to a .kdenlive file"] = None,
+    label: Annotated[str, "Name of the checkpoint to restore"] = "",
+    force: Annotated[bool, "Restore even if the file changed since the checkpoint"] = False,
+) -> dict:
+    """Restore a named checkpoint."""
+    if not label:
+        raise ToolError("label is required")
+    path = resolve_project(project_path)
+    revision, restored = ProjectHistory(path).restore_checkpoint(label, force=force)
+    return _ok(restored=revision.describe(), project=str(restored))
 
 
 # --------------------------------------------------------------------------

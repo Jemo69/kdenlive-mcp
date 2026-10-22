@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import schema
+from .binaries import to_wsl_path
 from .mltxml import (
     INTERNAL_ADDED,
     MAIN_BIN_ID,
@@ -68,6 +69,32 @@ class ValidationReport:
             "warning_count": len(self.warnings),
             "issues": [issue.describe() for issue in self.issues],
         }
+
+
+def resolve_media_path(project: MltProject, resource: str) -> Path | None:
+    """Resolve a bin resource to a path on the filesystem we can see.
+
+    Kdenlive stores media relative to the project file, and it also stores
+    absolute Windows paths (``C:/...``) for anything outside the project
+    folder.  Both have to be mapped onto the filesystem this process can
+    actually see, otherwise every clip looks missing.
+
+    Returns ``None`` for resources that are not files at all (colour
+    producers, generated clips) or that live on a remote host.
+    """
+    text = resource.strip()
+    if not text or text.startswith(("http://", "https://", "#")):
+        return None
+    # An absolute Windows path only exists for us under WSL.
+    if len(text) > 2 and text[1] == ":" and text[2] in "\\/":
+        return Path(to_wsl_path(text))
+    path = Path(text)
+    if path.is_absolute():
+        return path
+    # Relative resources are relative to the project file.
+    if project.path is not None:
+        return project.path.parent / path
+    return path
 
 
 def validate(project: MltProject, *, check_media: bool = True) -> ValidationReport:
@@ -214,7 +241,12 @@ def validate(project: MltProject, *, check_media: bool = True) -> ValidationRepo
                 continue
             if resource.startswith(("http://", "https://")):
                 continue
-            if not Path(resource).exists():
+            # Colour and other generated producers have a resource that is a
+            # colour name, not a file.
+            if get_property(clip.element, "mlt_service") == "color":
+                continue
+            resolved = resolve_media_path(project, resource)
+            if resolved is not None and not resolved.exists():
                 issues.append(
                     Issue(
                         "warning",

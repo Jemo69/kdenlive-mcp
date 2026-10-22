@@ -450,6 +450,9 @@ class MltProject:
         self.root = root
         self.path = path
         self._dirty = False
+        #: The raw bytes the project was loaded from, used by the undo history
+        #: to know what the file looked like before an edit.
+        self.source_bytes: bytes | None = None
 
     # -- construction ------------------------------------------------------
 
@@ -466,7 +469,12 @@ class MltProject:
         root = tree.getroot()
         if root.tag != "mlt":
             raise ProjectError(f"{p} is not an MLT project (root element is <{root.tag}>)")
-        return cls(root, p)
+        project = cls(root, p)
+        try:
+            project.source_bytes = p.read_bytes()
+        except OSError:
+            project.source_bytes = None
+        return project
 
     @classmethod
     def from_string(cls, text: str, path: Path | None = None) -> MltProject:

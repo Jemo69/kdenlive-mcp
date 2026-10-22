@@ -204,10 +204,12 @@ def to_windows_path(path: str | os.PathLike[str]) -> str:
         return text.replace("/", "\\")
     match = os.path.abspath(text)
     # /mnt/c/... -> C:\...
-    if match.startswith("/mnt/") and len(match) > 6 and match[5] == "/":
+    # Index 4 is the separator after "/mnt" and index 5 is the drive letter.
+    if match.startswith("/mnt/") and len(match) >= 6 and match[4] == "/":
         letter = match[5].upper()
         remainder = match[6:].replace("/", "\\")
-        return f"{letter}:\\{remainder}" if remainder else f"{letter}:\\"
+        # remainder already starts with a separator, so do not add another.
+        return f"{letter}:{remainder}" if remainder else f"{letter}:\\"
     # Anything else (e.g. /home/...) lives inside the Linux filesystem and has
     # no Windows equivalent; the caller has to copy it over.
     return text

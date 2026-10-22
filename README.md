@@ -253,6 +253,25 @@ the network — nothing about it is WSL specific.
 | `kdenlive_add_transition` | Add a transition between two tracks |
 | `kdenlive_remove_transition` | Remove a transition |
 
+### Undo and safety
+
+| Tool | What it does |
+|---|---|
+| `kdenlive_history` | The audit trail of every change the MCP made |
+| `kdenlive_undo` | Undo the last change |
+| `kdenlive_redo` | Re-apply the change that was undone |
+| `kdenlive_checkpoint` | Name the current state so it can be restored |
+| `kdenlive_restore_checkpoint` | Restore a named checkpoint |
+
+Every mutating tool records a revision, so a bad batch of edits is
+recoverable. Undo is refused when the file was edited outside the MCP since
+the last change, because undoing would throw that work away — pass
+`force=True` to override.
+
+The history is stored outside the project folder (see
+`KDENLIVE_MCP_STATE_DIR`), so it never ends up in the folder you sync to
+cloud storage.
+
 ### Media and output
 
 | Tool | What it does |
@@ -292,6 +311,7 @@ sequence references accept an index, a name or an id.
 | `KDENLIVE_MCP_MELT_ENV` | Extra `KEY=VALUE` pairs for the `melt` process |
 | `KDENLIVE_MCP_BACKUP` | `0` disables the `.bak` file on save |
 | `KDENLIVE_MCP_MAX_BACKUPS` | How many `.bak` generations to keep (default 3) |
+| `KDENLIVE_MCP_STATE_DIR` | Where the undo history is kept (default: the OS state directory) |
 
 ---
 
@@ -303,7 +323,7 @@ Kdenlive feature.
 
 **In scope:** reading and editing the timeline, media placement, trimming,
 splitting, moving, tracks, effects, transitions, the project bin, the profile,
-and headless rendering.
+headless rendering, and undo/redo with named checkpoints.
 
 **Out of scope, for now:** proxy generation and management, the timeline's
 own preview track, OpenTimelineIO import and export, subtitle authoring,
