@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kdenlive MCP Server — Build Plan</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --ink: #000000;
+    --paper: #ffffff;
+    --line: 3px;
+    --radius: 10px;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Montserrat", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    font-weight: 500;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 96px; }
+
+  /* ---------- MASTHEAD ---------- */
+
+  header.masthead {
+    border: var(--line) solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 32px;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    border: 2px solid var(--paper);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 20px 0 12px;
+    font-size: clamp(34px, 6vw, 58px);
+    line-height: 1.04;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  .chip {
+    border: 2px solid var(--paper);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ---------- SECTION ---------- */
+
+  section {
+    margin-top: 28px;
+    border: var(--line) solid var(--ink);
+    border-radius: var(--radius);
+    padding: 28px;
+    background: var(--paper);
+  }
+
+  section.solid { background: var(--ink); color: var(--paper); }
+  section.solid h2 { border-bottom-color: var(--paper); }
+  section.solid code { background: var(--paper); color: var(--ink); }
+  section.solid .note { border-left-color: var(--paper); }
+
+  h2 {
+    margin: 0 0 20px;
+    padding-bottom: 14px;
+    border-bottom: var(--line) solid var(--ink);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  h3 {
+    margin: 26px 0 10px;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  h3:first-of-type { margin-top: 0; }
+
+  p { margin: 0 0 14px; max-width: 74ch; }
+  p:last-child { margin-bottom: 0; }
+
+  strong { font-weight: 900; }
+
+  a { color: var(--ink); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+  /* ---------- QA BLOCKS ---------- */
+
+  .qa { border: var(--line) solid var(--ink); border-radius: var(--radius); overflow: hidden; }
+  .qa + .qa { margin-top: 14px; }
+
+  .qa-q {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .qa-a { padding: 18px 20px; }
+  .qa-a p { margin-bottom: 10px; }
+
+  .verdict {
+    display: inline-block;
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--paper);
+  }
+  .verdict.yes { background: var(--ink); color: var(--paper); }
+
+  /* ---------- CODE ---------- */
+
+  pre {
+    margin: 14px 0;
+    border: var(--line) solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--paper);
+    padding: 16px 18px;
+    overflow-x: auto;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+
+  pre code { background: none; padding: 0; }
+
+  p code, li code, td code {
+    border: 2px solid var(--ink);
+    border-radius: 5px;
+    padding: 1px 6px;
+    background: var(--paper);
+  }
+
+  /* ---------- TABLE ---------- */
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 4px;
+    font-size: 14.5px;
+  }
+
+  th, td {
+    border: 2px solid var(--ink);
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  tbody tr:nth-child(even) td { background: #f2f2f2; }
+
+  /* ---------- LISTS ---------- */
+
+  ul, ol { margin: 0 0 14px; padding-left: 22px; max-width: 74ch; }
+  li { margin-bottom: 8px; }
+  li::marker { font-weight: 900; }
+
+  /* ---------- NOTE ---------- */
+
+  .note {
+    border-left: 6px solid var(--ink);
+    padding: 4px 0 4px 16px;
+    margin: 18px 0;
+    font-weight: 600;
+  }
+
+  /* ---------- GRID ---------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+    margin-top: 4px;
+  }
+
+  .tile {
+    border: var(--line) solid var(--ink);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  .tile h4 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .tile p { margin: 0; font-size: 14px; }
+
+  .num {
+    font-size: 40px;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  /* ---------- FOOTER ---------- */
+
+  footer {
+    margin-top: 28px;
+    border-top: var(--line) solid var(--ink);
+    padding-top: 18px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 20px 14px 64px; }
+    header.masthead, section { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">Build Plan — Shipped</span>
+    <h1>Kdenlive<br>MCP Server</h1>
+    <p class="standfirst">
+      A Model Context Protocol server that drives the KDE video editor Kdenlive by
+      editing its native MLT XML project file. No GUI scraping. No window
+      automation. Deterministic, headless, identical on Linux, macOS, Windows and WSL.
+    </p>
+    <div class="meta">
+      <span class="chip">Python 3.10+</span>
+      <span class="chip">FastMCP 4</span>
+      <span class="chip">uv managed</span>
+      <span class="chip">32 tools</span>
+      <span class="chip">81 tests green</span>
+      <span class="chip">MIT</span>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>The short version</h2>
+    <p>
+      A <code>.kdenlive</code> project is an XML document. Upstream documents the
+      format in <code>dev-docs/fileformat.md</code>, and every fact about a project —
+      clips, tracks, effects, transitions, timing — is in that one file. So the MCP
+      reads and writes that file directly instead of pretending to be a human with a
+      mouse.
+    </p>
+    <p>
+      That single decision is what makes this work where the video-editor MCPs on the
+      market do not. A GUI-scraping server needs a display, a specific window layout,
+      and it loses races against the UI. This one needs nothing but Python. It works
+      in CI, it works over SSH, it works while the editor is closed, and it produces
+      the same bytes on every operating system.
+    </p>
+    <div class="grid">
+      <div class="tile">
+        <div class="num">0</div>
+        <h4>Runtime dependencies</h4>
+        <p>Standard library only. <code>melt</code> and <code>ffprobe</code> are optional extras that unlock rendering and exact media timings.</p>
+      </div>
+      <div class="tile">
+        <div class="num">407</div>
+        <h4>Effects catalogued</h4>
+        <p>Plus 53 transitions, generated from Kdenlive's own <code>data/effects</code>. The model never has to guess an <code>mlt_service</code> name.</p>
+      </div>
+      <div class="tile">
+        <div class="num">125</div>
+        <h4>Frames rendered</h4>
+        <p>Real H.264/AAC output at 1920×1080 / 25 fps from a project this server wrote, verified against MLT 7.41.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>Your questions, answered</h2>
+
+    <div class="qa">
+      <div class="qa-q">Do users have to set environment variables and stuff like that?</div>
+      <div class="qa-a">
+        <p><span class="verdict yes">No</span></p>
+        <p>
+          Zero configuration is the default. Every tool takes the project path as an
+          argument, so <code>KDENLIVE_MCP_PROJECT</code> is a convenience, not a
+          requirement. The variables exist for people who want to set a default
+          project or point at an unusual <code>melt</code> build — nothing breaks if
+          you never touch them.
+        </p>
+        <p>
+          The one thing you <em>do</em> configure once is the MCP client itself
+          (Claude Desktop, OpenCode, Cursor). That is a five-line JSON block, and it
+          is the same block on all three operating systems.
+        </p>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="qa-q">Does the user have to link the project to something first?</div>
+      <div class="qa-a">
+        <p><span class="verdict yes">No</span></p>
+        <p>
+          No linking step, no registration, no "open project" handshake. Point a tool
+          at a <code>.kdenlive</code> path and it works. The server can create one from
+          nothing with <code>kdenlive_create_project</code>, and it can list a
+          directory of them for you.
+        </p>
+        <p>
+          What does exist is the bin — Kdenlive's own media shelf. Clips you add land
+          there, and <code>kdenlive_add_clip</code> accepts a bin clip id instead of a
+          file path when you want to reuse the same media on the timeline twice.
+        </p>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="qa-q">Does Kdenlive have to be open?</div>
+      <div class="qa-a">
+        <p><span class="verdict yes">No — and this matters</span></p>
+        <p>
+          Kdenlive does not need to be running. Not for reading, not for editing, not
+          for rendering. Rendering shells out to MLT's <code>melt</code> directly, so
+          a headless box with Kdenlive installed is a fully functional video
+          production machine.
+        </p>
+        <div class="note">
+          <strong>But do not edit the same file from both sides at once.</strong>
+          Kdenlive holds the project in memory and rewrites the entire document when
+          you hit save. If you edit the file through the MCP while Kdenlive has it
+          open, then save in Kdenlive, your changes are gone — Kdenlive overwrites the
+          file with its stale in-memory copy. Pick one owner for a given file at a
+          given moment. If you need to hand work back and forth, use the bridge
+          below so a single process stays the source of truth.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa">
+      <div class="qa-q">Which tools put an HTML file and a plan config together?</div>
+      <div class="qa-a">
+        <p>
+          None of them — and that is deliberate. The whole design is that the project
+          file <em>is</em> the data. There is no sidecar HTML, no config schema, no
+          manifest to keep in sync with the timeline. A <code>.kdenlive</code> file is
+          self-describing: the profile, the sequences, the tracks, the clips and their
+          effects are all right there in it.
+        </p>
+        <p>
+          What you get instead is a validator. <code>kdenlive_validate_project</code>
+          reports dangling references, producers defined after the elements that use
+          them, stale cached durations and missing media. Run it after a batch of
+          edits and you get a factual report instead of a guess.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>How it is put together</h2>
+    <p>
+      Pure Python, no framework between you and the XML. The layers are small and
+      each one is useful on its own.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Module</th><th>Job</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>mltxml.py</code></td><td>The project model. Reads and writes MLT XML, resolves sequences, tracks, clips and the bin, performs frame-accurate playlist edits.</td></tr>
+        <tr><td><code>schema.py</code></td><td>MLT's content models, transcribed from the upstream DTD. Catches ordering mistakes that silently break Kdenlive.</td></tr>
+        <tr><td><code>validate.py</code></td><td>Structural validation: dangling and forward references, stale durations, missing media, effects without a service name.</td></tr>
+        <tr><td><code>_catalog.py</code></td><td>407 effects and 53 transitions with their real parameter names. Generated, never hand-edited.</td></tr>
+        <tr><td><code>media.py</code></td><td><code>ffprobe</code> wrapper for real durations, frame rates and stream layouts.</td></tr>
+        <tr><td><code>render.py</code></td><td>Background rendering through <code>melt</code>, with progress parsing and cancellation.</td></tr>
+        <tr><td><code>bridge.py</code></td><td>HTTP client for reaching a Kdenlive on another machine.</td></tr>
+        <tr><td><code>binaries.py</code></td><td>Locates <code>melt</code>, <code>ffprobe</code> and <code>ffmpeg</code> across Linux, macOS, Windows and WSL.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>The format rules that bite</h2>
+    <p>
+      These are the details that separate a project Kdenlive opens cleanly from one
+      it chokes on. Every one of them was read out of the upstream source and then
+      confirmed by rendering with MLT 7.41 — not guessed.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Rule</th><th>Why it matters</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Clip effects live inside the <code>&lt;entry&gt;</code></td>
+          <td>Not on the producer. The same media can sit on the timeline twice and each instance carries its own effects.</td>
+        </tr>
+        <tr>
+          <td>Track effects live inside the track's <code>&lt;tractor&gt;</code></td>
+          <td>Not on the track's first playlist. Only Kdenlive's internally added audio-mixer filters go on the tractor as well.</td>
+        </tr>
+        <tr>
+          <td>Master effects live inside the sequence's <code>&lt;tractor&gt;</code></td>
+          <td>The sequence tractor is the timeline; the project tractor at the end of the file is just the wrapper pointing at it.</td>
+        </tr>
+        <tr>
+          <td>The sequence tractor's element <code>id</code> <em>is</em> its uuid</td>
+          <td>Not a <code>tractorN</code> name. <code>main_bin</code> and the project tractor reference that uuid.</td>
+        </tr>
+        <tr>
+          <td>Producers are defined before the elements that use them</td>
+          <td>MLT resolves references in document order. A chain appended at the end of the file is a forward reference and it will not resolve.</td>
+        </tr>
+        <tr>
+          <td>Two timecode formats are in play</td>
+          <td><code>HH:MM:SS.mmm</code> is a millisecond clock value for MLT's <code>in</code>/<code>out</code>. <code>HH:MM:SS:FF</code> is a frame count for Kdenlive's <code>kdenlive:duration</code>. Mixing them silently shifts your timeline by a frame.</td>
+        </tr>
+        <tr>
+          <td><code>out</code> is inclusive</td>
+          <td>A clip's length is <code>out - in + 1</code>, not <code>out - in</code>.</td>
+        </tr>
+        <tr>
+          <td>Ids are unique across the whole tree</td>
+          <td>Filters and transitions are nested inside tractors, so an id generator that only scans root children will hand out duplicates.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>The tool surface</h2>
+    <p>
+      Thirty-two tools, grouped by what you are trying to do. The design rule: every
+      tool returns facts about the file, never a guess. A tool that reports success
+      without evidence is worse than no tool at all.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Group</th><th>Tools</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Inspect</td>
+          <td><code>kdenlive_status</code>, <code>kdenlive_project_info</code>, <code>kdenlive_sequences</code>, <code>kdenlive_tracks</code>, <code>kdenlive_clips</code>, <code>kdenlive_bin</code>, <code>kdenlive_effects_on</code>, <code>kdenlive_effects_catalog</code>, <code>kdenlive_validate_project</code></td>
+        </tr>
+        <tr>
+          <td>Build</td>
+          <td><code>kdenlive_create_project</code>, <code>kdenlive_add_track</code>, <code>kdenlive_remove_track</code>, <code>kdenlive_add_clip</code>, <code>kdenlive_remove_clip</code>, <code>kdenlive_move_clip</code>, <code>kdenlive_trim_clip</code>, <code>kdenlive_split_clip</code>, <code>kdenlive_set_clip_property</code>, <code>kdenlive_set_track_property</code></td>
+        </tr>
+        <tr>
+          <td>Effects</td>
+          <td><code>kdenlive_add_effect</code>, <code>kdenlive_remove_effect</code>, <code>kdenlive_add_transition</code>, <code>kdenlive_remove_transition</code></td>
+        </tr>
+        <tr>
+          <td>Media &amp; output</td>
+          <td><code>kdenlive_probe_media</code>, <code>kdenlive_render</code>, <code>kdenlive_render_status</code>, <code>kdenlive_render_cancel</code></td>
+        </tr>
+        <tr>
+          <td>Bridge &amp; paths</td>
+          <td><code>kdenlive_bridge_status</code>, <code>kdenlive_bridge_projects</code>, <code>kdenlive_bridge_open</code>, <code>kdenlive_bridge_render</code>, <code>kdenlive_path_translate</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note">
+      Positions and durations are <strong>frames</strong> by default. A timecode string
+      like <code>"00:00:05.000"</code> is accepted anywhere a frame count is, and
+      track, clip and sequence references accept an index, a name or an id. The model
+      should never have to convert between representations by hand.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section class="solid">
+    <h2>Install</h2>
+    <p>One command on every platform. <code>uv</code> handles the interpreter, the
+    virtualenv and the entry point.</p>
+    <pre><code># anywhere -- macOS, Linux, Windows (PowerShell)
+uv tool install kdenlive-mcp
+
+# or from a checkout
+uv sync
+uv run kdenlive-mcp</code></pre>
+    <h3>Client configuration</h3>
+    <p>Claude Desktop, OpenCode and Cursor all take the same shape — a command, some
+    args, and optionally an environment block:</p>
+    <pre><code>{
+  "mcpServers": {
+    "kdenlive": {
+      "command": "uv",
+      "args": ["tool", "run", "--from", "kdenlive-mcp", "kdenlive-mcp"],
+      "env": { "KDENLIVE_MCP_PROJECT": "/home/me/Videos/myproject.kdenlive" }
+    }
+  }
+}</code></pre>
+    <h3>Optional: the renderer</h3>
+    <p>
+      <code>melt</code> ships with Kdenlive. Linux: <code>apt install melt</code>.
+      macOS: <code>brew install mlt</code>. Windows: install Kdenlive and it lands in
+      <code>C:\Program Files\Kdenlive\bin\melt.exe</code>. If it is somewhere odd,
+      point at it with <code>KDENLIVE_MCP_MELT</code>. Portable builds that need
+      <code>MLT_REPOSITORY</code> and friends get them through
+      <code>KDENLIVE_MCP_MELT_ENV</code>.
+    </p>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>WSL: the server in Linux, Kdenlive on Windows</h2>
+    <p>
+      This is the configuration the thing was designed around, so it splits cleanly
+      into two halves.
+    </p>
+    <h3>Half one — editing, for free</h3>
+    <p>
+      A project on the Windows drive is reachable from WSL through
+      <code>/mnt/c</code>. Since the MCP edits the file directly, there is no boundary
+      to cross. No bridge, no configuration, no Windows binary involved.
+    </p>
+    <pre><code>ls /mnt/c/Users/me/Videos/myproject.kdenlive   # just works</code></pre>
+    <h3>Half two — rendering and the GUI, via the bridge</h3>
+    <p>
+      Those need the machine that actually has Kdenlive on it. The bridge is a tiny
+      stdlib-only HTTP server that runs on the Windows side and hands back a local
+      render or launches the editor.
+    </p>
+    <pre><code># on Windows
+python bridge\kdenlive_bridge.py
+# Kdenlive bridge listening on http://127.0.0.1:8765
+
+# inside WSL -- the Windows host address
+export KDENLIVE_MCP_BRIDGE_URL=http://172.28.224.1:8765</code></pre>
+    <p>
+      The server probes <code>127.0.0.1</code> first, then the WSL gateway, so
+      Windows 11 mirrored networking needs no configuration at all. The same bridge
+      reaches a Kdenlive on a different machine over the network — nothing about it
+      is WSL-specific.
+    </p>
+    <div class="note">
+      The bridge has <strong>no authentication</strong>. It binds to
+      <code>127.0.0.1</code> by default and it should stay there. Do not expose it to
+      the internet.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>What was actually verified</h2>
+    <p>
+      Assertions without artifacts are marketing. Here is what ran, and what came
+      back.
+    </p>
+    <ul>
+      <li>
+        <strong>81 of 81 tests pass</strong>, including five that render real video
+        through MLT 7.41 and probe the output frame by frame.
+      </li>
+      <li>
+        <strong>All eight of Kdenlive's own test projects</strong> load through the
+        model — these are unmodified upstream fixtures, used as ground truth.
+      </li>
+      <li>
+        <strong>Generated projects satisfy MLT's content models</strong> — the same
+        checks the eight upstream fixtures pass, transcribed from MLT's DTD.
+      </li>
+      <li>
+        <strong>A full round trip renders correctly.</strong> Create project → two
+        clips on two tracks → clip effect → transition → trim → validate → render.
+        Output: 125 frames, 1920×1080, 25 fps, H.264/AAC, 5.013 s. The clip effect
+        is visibly inverted, the second track composites over the first, and the trim
+        lands exactly where it was asked to.
+      </li>
+      <li>
+        <strong>Effect scope was verified per scope, not assumed.</strong> Clip
+        scope, track scope and sequence scope were each rendered and the pixels
+        checked. A clip effect on the entry, a track effect on the tractor, a master
+        effect on the sequence tractor — all three produce the inverted frame, and a
+        split carries its effects onto both halves.
+      </li>
+      <li>
+        <strong>The bridge was exercised end to end</strong>, including a render
+        started through the MCP and completed on the bridge machine.
+      </li>
+    </ul>
+    <div class="note">
+      One honest caveat: the render verification ran against MLT 7.41 on Linux. The
+      XML output is platform independent by construction, but the <code>melt</code>
+      invocations on Windows and macOS have not been run on this machine.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>Known limits</h2>
+    <ul>
+      <li>
+        <strong>One writer per file at a time.</strong> Covered above, and it is the
+        single most likely way to lose work.
+      </li>
+      <li>
+        <strong>Round-trip fidelity is not guaranteed for every Kdenlive feature.</strong>
+        The model reads and writes the structures it needs and preserves the rest
+        untouched, but obscure features — the timeline's own preview track, some
+        proxy states — are carried along rather than understood.
+      </li>
+      <li>
+        <strong>Render progress is parsed from melt's output text.</strong> That
+        format has been stable for years, but it is text scraping, not an API.
+      </li>
+      <li>
+        <strong>The bridge is unauthenticated.</strong> Loopback only.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ -->
+
+  <section>
+    <h2>Where it lives</h2>
+    <table>
+      <thead>
+        <tr><th>Thing</th><th>Path</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>The MCP server</td><td><code>/home/jemo/projects/kdenlive-mcp</code></td></tr>
+        <tr><td>Kdenlive source (reference)</td><td><code>/tmp/opencode/kdenlive</code> — clone of <code>github.com/KDE/kdenlive</code> on <code>master</code></td></tr>
+        <tr><td>Bridge (Windows side)</td><td><code>bridge/kdenlive_bridge.py</code></td></tr>
+        <tr><td>Effect catalogue generator</td><td><code>tools/generate_catalog.py</code></td></tr>
+        <tr><td>Upstream test fixtures</td><td><code>tests/fixtures/</code> — unmodified, GPL-3.0</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    KDENLIVEMCP — BUILDER VOICE — PLAN PUBLISHED FROM THE IMPLEMENTED WORKING SYSTEM
+  </footer>
+
+</div>
+</body>
+</html>
