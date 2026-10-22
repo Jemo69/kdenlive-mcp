@@ -190,8 +190,27 @@ def find_ffmpeg() -> ToolInfo:
 # --------------------------------------------------------------------------
 
 
+def mount_to_windows(text: str) -> str | None:
+    """Translate a "/mnt/<drive>/..." path into Windows form.
+
+    Pure string handling on purpose: the result must not depend on the path
+    semantics of the host the function happens to run on.  Returns ``None``
+    when the path is not a mount point.
+    """
+    normalised = text.replace("\\", "/")
+    if not normalised.startswith("/mnt/") or len(normalised) < 6:
+        return None
+    # Index 4 is the separator after "/mnt" and index 5 is the drive letter.
+    letter = normalised[5].upper()
+    remainder = normalised[6:]
+    if remainder:
+        # The remainder already starts with a separator, so do not add another.
+        return f"{letter}:{remainder.replace('/', chr(92))}"
+    return f"{letter}:{chr(92)}"
+
+
 def to_windows_path(path: str | os.PathLike[str]) -> str:
-    """Translate a path into Windows form (``C:\\dir\\file``).
+    """Translate a path into Windows form (``C:\dir\file``).
 
     Outside WSL the input is returned unchanged.
     """
@@ -202,14 +221,9 @@ def to_windows_path(path: str | os.PathLike[str]) -> str:
         return text
     if len(text) > 2 and text[1] == ":" and text[2] in "\\/":
         return text.replace("/", "\\")
-    match = os.path.abspath(text)
-    # /mnt/c/... -> C:\...
-    # Index 4 is the separator after "/mnt" and index 5 is the drive letter.
-    if match.startswith("/mnt/") and len(match) >= 6 and match[4] == "/":
-        letter = match[5].upper()
-        remainder = match[6:].replace("/", "\\")
-        # remainder already starts with a separator, so do not add another.
-        return f"{letter}:{remainder}" if remainder else f"{letter}:\\"
+    translated = mount_to_windows(text)
+    if translated is not None:
+        return translated
     # Anything else (e.g. /home/...) lives inside the Linux filesystem and has
     # no Windows equivalent; the caller has to copy it over.
     return text
