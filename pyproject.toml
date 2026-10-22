@@ -1,0 +1,60 @@
+[project]
+name = "kdenlive-mcp"
+version = "0.1.0"
+description = "MCP server for Kdenlive: drive the MLT project format headlessly, from any OS, including WSL."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jemo69", email = "jemolife69@gmail.com" }]
+keywords = ["kdenlive", "mlt", "mcp", "video-editing", "fastmcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Video :: Non-Linear Editor",
+]
+dependencies = ["fastmcp>=2.0"]
+
+[project.urls]
+Homepage = "https://github.com/jemo69/kdenlive-mcp"
+Repository = "https://github.com/jemo69/kdenlive-mcp"
+
+[project.scripts]
+kdenlive-mcp = "kdenlive_mcp.__main__:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
+
+[dependency-groups]
+dev = [
+    "lxml>=6.1.3",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "kdenlive_mcp"
+module-root = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
