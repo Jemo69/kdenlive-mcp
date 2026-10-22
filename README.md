@@ -1,5 +1,8 @@
 # kdenlive-mcp
 
+[![CI](https://github.com/Jemo69/kdenlive-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Jemo69/kdenlive-mcp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
+
 An MCP server that drives [Kdenlive](https://kdenlive.org) — the KDE video editor.
 
 **It does not need Kdenlive to be running.** A Kdenlive project is an MLT XML
@@ -56,8 +59,11 @@ recommended installer — it works identically on all three platforms.
 ### Any platform (uv tool install)
 
 ```bash
-uv tool install kdenlive-mcp          # from PyPI
-uv tool install --from git+https://github.com/jemo69/kdenlive-mcp kdenlive-mcp
+# from GitHub
+uv tool install git+https://github.com/Jemo69/kdenlive-mcp
+
+# or, once it is on PyPI
+uv tool install kdenlive-mcp
 ```
 
 ### Linux
@@ -179,16 +185,18 @@ stdlib-only HTTP server that runs on the Windows side, where Kdenlive lives.
 On Windows:
 
 ```powershell
-python bridge\kdenlive_bridge.py
+python bridge\kdenlive_bridge.py --token <a-long-random-string>
 # Kdenlive bridge listening on http://127.0.0.1:8765
 #   kdenlive: C:\Program Files\Kdenlive\bin\kdenlive.exe
 #   melt:     C:\Program Files\Kdenlive\bin\melt.exe
+#   auth:     bearer token required
 ```
 
 Then point the MCP at it — inside WSL:
 
 ```bash
 export KDENLIVE_MCP_BRIDGE_URL=http://172.28.224.1:8765   # the Windows host IP
+export KDENLIVE_MCP_BRIDGE_TOKEN=<the same token>
 ```
 
 The address is printed by `ip route show default | awk '{print $3}'` inside
@@ -198,8 +206,10 @@ works too; the server tries that address first anyway.
 The bridge is also the way to reach a Kdenlive on a *different* machine over
 the network — nothing about it is WSL specific.
 
-> The bridge has no authentication. Bind it to `127.0.0.1` (the default) and
-> do not expose it to the internet.
+> The bridge has **no authentication by default**. Pass `--token` (or set
+> `KDENLIVE_BRIDGE_TOKEN` on both sides) so every request must carry a bearer
+> token, and bind it to `127.0.0.1`. If you must expose it beyond the host,
+> use the token — and put it behind TLS, because it is a plain bearer token.
 
 ---
 
@@ -278,11 +288,30 @@ sequence references accept an index, a name or an id.
 | `KDENLIVE_MCP_MELT` | Path to the `melt` renderer |
 | `KDENLIVE_MCP_FFPROBE` | Path to `ffprobe` |
 | `KDENLIVE_MCP_BRIDGE_URL` | Base URL of the Kdenlive bridge |
+| `KDENLIVE_MCP_BRIDGE_TOKEN` | Bearer token for the bridge |
 | `KDENLIVE_MCP_MELT_ENV` | Extra `KEY=VALUE` pairs for the `melt` process |
 | `KDENLIVE_MCP_BACKUP` | `0` disables the `.bak` file on save |
 | `KDENLIVE_MCP_MAX_BACKUPS` | How many `.bak` generations to keep (default 3) |
 
 ---
+
+## Scope
+
+This server automates the **project file**. It is deliberately not a remote
+control for the Kdenlive GUI, and it is not a full automation layer for every
+Kdenlive feature.
+
+**In scope:** reading and editing the timeline, media placement, trimming,
+splitting, moving, tracks, effects, transitions, the project bin, the profile,
+and headless rendering.
+
+**Out of scope, for now:** proxy generation and management, the timeline's
+own preview track, OpenTimelineIO import and export, subtitle authoring,
+audio waveform rendering, plugin and effect discovery beyond the built-in
+catalogue, and driving the editor's menus and dialogs.
+
+Feature requests are welcome. Those in the second list are real gaps, not
+deliberate omissions — they are simply larger than a file-format editor.
 
 ## Development
 

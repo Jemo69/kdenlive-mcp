@@ -129,11 +129,16 @@ def candidate_urls() -> list[str]:
 
 
 class BridgeClient:
-    """A tiny HTTP client for the Kdenlive bridge."""
+    """A tiny HTTP client for the Kdenlive bridge.
+
+    Set ``KDENLIVE_MCP_BRIDGE_TOKEN`` to the same value the bridge was started
+    with to authenticate the requests.
+    """
 
     def __init__(self, base_url: str | None = None, timeout: float = 15.0) -> None:
         self.base_url = (base_url or os.environ.get("KDENLIVE_MCP_BRIDGE_URL") or "").rstrip("/")
         self.timeout = timeout
+        self.token = os.environ.get("KDENLIVE_MCP_BRIDGE_TOKEN", "").strip()
         self._resolved: str | None = None
 
     # -- low level ---------------------------------------------------------
@@ -148,6 +153,8 @@ class BridgeClient:
         url = f"{base or self.base_url}{path}"
         data = None
         headers = {"Accept": "application/json"}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
         if payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"
@@ -188,10 +195,17 @@ class BridgeClient:
             self._resolved = url
             self.base_url = url
             return url
+        hint = ""
+        if self.token:
+            hint = (
+                " The bridge answered but rejected the token -- check that "
+                "KDENLIVE_MCP_BRIDGE_TOKEN matches the one it was started with."
+            )
         raise BridgeError(
             "No Kdenlive bridge found. Start one with `python bridge/kdenlive_bridge.py` on the "
-            "machine running Kdenlive, or set KDENLIVE_MCP_BRIDGE_URL. "
-            f"Last error: {last_error}"
+            "machine running Kdenlive, or set KDENLIVE_MCP_BRIDGE_URL."
+            + hint
+            + f" Last error: {last_error}"
         )
 
     def health(self) -> BridgeInfo:

@@ -33,6 +33,7 @@ import json
 import os
 import platform
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -160,6 +161,17 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
     server_version = "KdenliveBridge/0.1"
 
+    # -- authentication ----------------------------------------------------
+
+    def _authorised(self) -> bool:
+        """Check the bearer token, if the bridge was started with one."""
+        expected = getattr(self.server, "token", "")  # type: ignore[attr-defined]
+        if not expected:
+            return True
+        header = self.headers.get("Authorization", "")
+        supplied = header[7:].strip() if header.lower().startswith("bearer ") else ""
+        return bool(supplied) and secrets.compare_digest(supplied, expected)
+
     # -- plumbing ----------------------------------------------------------
 
     def log_message(self, format: str, *args) -> None:  # noqa: A002
@@ -190,6 +202,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         route = parsed.path.rstrip("/") or "/"
         query = urllib.parse.parse_qs(parsed.query)
+
+        if not self._authorised():
+            self._send(401, {"error": "unauthorised", "ok": False})
+            return
 
         if route == "/health":
             self._send(
@@ -244,6 +260,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         route = parsed.path.rstrip("/") or "/"
         payload = self._read_json()
+
+        if not self._authorised():
+            self._send(401, {"error": "unauthorised", "ok": False})
+            return
 
         if route == "/render":
             self._start_render(payload)
@@ -404,16 +424,26 @@ def main() -> int:
     parser.add_argument("--host", default="127.0.0.1", help="interface to bind (default 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8765, help="port to listen on")
     parser.add_argument("--verbose", action="store_true", help="log every request")
+    parser.add_argument(
+        "--token",
+        default=os.environ.get("KDENLIVE_BRIDGE_TOKEN", ""),
+        help="require this bearer token (or set KDENLIVE_BRIDGE_TOKEN)",
+    )
     args = parser.parse_args()
 
     server = ThreadingHTTPServer((args.host, args.port), BridgeHandler)
     server.verbose = args.verbose  # type: ignore[attr-defined]
+    server.token = args.token.strip()  # type: ignore[attr-defined]
 
     melt = find_melt()
     kdenlive = find_kdenlive()
     print(f"Kdenlive bridge listening on http://{args.host}:{args.port}")
     print(f"  kdenlive: {kdenlive or 'not found'}")
     print(f"  melt:     {melt or 'not found'}")
+    if args.token.strip():
+        print("  auth:     bearer token required")
+    else:
+        print("  auth:     NONE -- pass --token or set KDENLIVE_BRIDGE_TOKEN")
     print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
