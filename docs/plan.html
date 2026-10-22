@@ -284,12 +284,16 @@
       editing its native MLT XML project file. No GUI scraping. No window
       automation. Deterministic, headless, identical on Linux, macOS, Windows and WSL.
     </p>
+    <p class="standfirst" style="margin-top:18px">
+      <a href="https://github.com/Jemo69/kdenlive-mcp" style="color:#fff">github.com/Jemo69/kdenlive-mcp</a>
+    </p>
     <div class="meta">
       <span class="chip">Python 3.10+</span>
       <span class="chip">FastMCP 4</span>
       <span class="chip">uv managed</span>
       <span class="chip">32 tools</span>
-      <span class="chip">81 tests green</span>
+      <span class="chip">91 tests green</span>
+      <span class="chip">CI on 3 OSes</span>
       <span class="chip">MIT</span>
     </div>
   </header>
@@ -541,11 +545,17 @@
     <p>One command on every platform. <code>uv</code> handles the interpreter, the
     virtualenv and the entry point.</p>
     <pre><code># anywhere -- macOS, Linux, Windows (PowerShell)
-uv tool install kdenlive-mcp
+uv tool install git+https://github.com/Jemo69/kdenlive-mcp
 
 # or from a checkout
 uv sync
 uv run kdenlive-mcp</code></pre>
+    <p>
+      PyPI is not published yet, so the GitHub install is the working one today.
+      The packaging is already PyPI-shaped &mdash; <code>uv build</code> produces a
+      clean wheel and sdist &mdash; so publishing it later is a credential away,
+      not a code change.
+    </p>
     <h3>Client configuration</h3>
     <p>Claude Desktop, OpenCode and Cursor all take the same shape — a command, some
     args, and optionally an environment block:</p>
@@ -591,11 +601,13 @@ uv run kdenlive-mcp</code></pre>
       render or launches the editor.
     </p>
     <pre><code># on Windows
-python bridge\kdenlive_bridge.py
+python bridge\kdenlive_bridge.py --token &lt;a-long-random-string&gt;
 # Kdenlive bridge listening on http://127.0.0.1:8765
+#   auth: bearer token required
 
 # inside WSL -- the Windows host address
-export KDENLIVE_MCP_BRIDGE_URL=http://172.28.224.1:8765</code></pre>
+export KDENLIVE_MCP_BRIDGE_URL=http://172.28.224.1:8765
+export KDENLIVE_MCP_BRIDGE_TOKEN=&lt;the same token&gt;</code></pre>
     <p>
       The server probes <code>127.0.0.1</code> first, then the WSL gateway, so
       Windows 11 mirrored networking needs no configuration at all. The same bridge
@@ -603,9 +615,10 @@ export KDENLIVE_MCP_BRIDGE_URL=http://172.28.224.1:8765</code></pre>
       is WSL-specific.
     </p>
     <div class="note">
-      The bridge has <strong>no authentication</strong>. It binds to
-      <code>127.0.0.1</code> by default and it should stay there. Do not expose it to
-      the internet.
+      The bridge takes an optional bearer token. Pass <code>--token</code> when you
+      start it and set <code>KDENLIVE_MCP_BRIDGE_TOKEN</code> on the MCP side; every
+      request then has to carry it. Leaving it off means no authentication at all,
+      which is fine for loopback and not fine for anything else.
     </div>
   </section>
 
@@ -619,8 +632,14 @@ export KDENLIVE_MCP_BRIDGE_URL=http://172.28.224.1:8765</code></pre>
     </p>
     <ul>
       <li>
-        <strong>81 of 81 tests pass</strong>, including five that render real video
-        through MLT 7.41 and probe the output frame by frame.
+        <strong>91 of 91 tests pass</strong>, including five that render real video
+        through MLT 7.41 and probe the output frame by frame, and ten that drive a
+        live bridge process over HTTP.
+      </li>
+      <li>
+        <strong>CI runs on all three operating systems.</strong> Ten jobs: Linux,
+        macOS and Windows against Python 3.10, 3.12 and 3.13, plus a headless
+        render job on Ubuntu with MLT installed. All green.
       </li>
       <li>
         <strong>All eight of Kdenlive's own test projects</strong> load through the
@@ -690,6 +709,7 @@ export KDENLIVE_MCP_BRIDGE_URL=http://172.28.224.1:8765</code></pre>
         <tr><th>Thing</th><th>Path</th></tr>
       </thead>
       <tbody>
+        <tr><td>The open source repo</td><td><a href="https://github.com/Jemo69/kdenlive-mcp">github.com/Jemo69/kdenlive-mcp</a> &mdash; public, MIT</td></tr>
         <tr><td>The MCP server</td><td><code>/home/jemo/projects/kdenlive-mcp</code></td></tr>
         <tr><td>Kdenlive source (reference)</td><td><code>/tmp/opencode/kdenlive</code> — clone of <code>github.com/KDE/kdenlive</code> on <code>master</code></td></tr>
         <tr><td>Bridge (Windows side)</td><td><code>bridge/kdenlive_bridge.py</code></td></tr>
